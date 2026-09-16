@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { inspect } from "./inspect.mjs"
 import { run } from "./process.mjs"
+import { restoreAuth } from "/sandbox/auth.mjs"
 
 await run("npm", [
     "install",
@@ -18,9 +19,20 @@ const logger = "/lab/plugins/node_modules/opencode-request-logger"
 const dcp = "/lab/plugins/node_modules/@tarquinen/opencode-dcp"
 const { createRelay } = await import(pathToFileURL(join(logger, "relay.mjs")))
 const root = "/lab/live"
-const auth = JSON.parse(await readFile(join(root, "auth.json"), "utf8"))
 const directory = join(root, "project")
 const config = join(root, "config/opencode")
+const cli = "/opt/v2/node_modules/.bin/opencode2"
+const env = {
+    ...process.env,
+    HOME: root,
+    PWD: directory,
+    XDG_CONFIG_HOME: join(root, "config"),
+    XDG_DATA_HOME: join(root, "data"),
+    XDG_STATE_HOME: join(root, "state"),
+    XDG_CACHE_HOME: join(root, "cache"),
+    OPENCODE_CONFIG_DIR: config,
+    OPENCODE_LOG_LEVEL: "DEBUG",
+}
 await Promise.all([directory, config].map((path) => mkdir(path, { recursive: true })))
 for (const transport of ["http", "websocket"]) {
     const logs = join(root, transport, "logs")
@@ -46,14 +58,6 @@ for (const transport of ["http", "websocket"]) {
                 permissions: [{ action: "compress", resource: "*", effect: "allow" }],
                 providers: {
                     openai: {
-                        settings: {
-                            baseURL: "https://chatgpt.com/backend-api/codex",
-                            apiKey: "{env:DCP_TOKEN}",
-                        },
-                        headers: {
-                            "chatgpt-account-id": "{env:DCP_ACCOUNT}",
-                            originator: "opencode",
-                        },
                         models: { "gpt-5.6-sol": { transport } },
                     },
                 },
@@ -63,27 +67,16 @@ for (const transport of ["http", "websocket"]) {
             join(config, "dcp.json"),
             JSON.stringify({ autoUpdate: false, debug: true, pruneNotification: "off" }),
         )
+        if (transport === "http") await restoreAuth(2, "/artifacts/auth.json", cli, env)
         const prompt =
             "LIVE_RAW_PAYLOAD: We are testing DCP in an isolated environment. Everything in this user message is disposable test content. Call compress exactly once on this message using its injected message ID, with summary 'DCP_LIVE_SUMMARY: disposable test fixture. Compression is done; reply with exactly DCP_LIVE_OK and do not use more tools.' After the tool completes, reply with exactly DCP_LIVE_OK. Do not use other tools."
         const output = await run(
-            "/opt/v2/node_modules/.bin/opencode2",
+            cli,
             ["run", "--standalone", "--format", "json", "--model", "openai/gpt-5.6-sol", prompt],
             {
                 cwd: directory,
                 record: join(root, transport, "run"),
-                env: {
-                    ...process.env,
-                    DCP_TOKEN: auth.access,
-                    DCP_ACCOUNT: auth.account,
-                    HOME: root,
-                    PWD: directory,
-                    XDG_CONFIG_HOME: join(root, "config"),
-                    XDG_DATA_HOME: join(root, "data"),
-                    XDG_STATE_HOME: join(root, "state"),
-                    XDG_CACHE_HOME: join(root, "cache"),
-                    OPENCODE_CONFIG_DIR: config,
-                    OPENCODE_LOG_LEVEL: "DEBUG",
-                },
+                env,
             },
         )
         const { captures, summary } = await inspect(logs)

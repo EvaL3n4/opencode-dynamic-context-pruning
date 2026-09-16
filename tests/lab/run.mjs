@@ -7,6 +7,7 @@ import { createMock } from "./mock.mjs"
 import { inspect } from "./inspect.mjs"
 import { run } from "./process.mjs"
 import { commands } from "./api.mjs"
+import { authentication } from "./auth.mjs"
 
 await run("npm", [
     "install",
@@ -17,6 +18,7 @@ await run("npm", [
     "/artifacts/opencode-request-logger-0.1.0.tgz",
     "/artifacts/tarquinen-opencode-dcp-3.1.15.tgz",
 ])
+console.log(JSON.stringify(await authentication()))
 const logger = "/lab/plugins/node_modules/opencode-request-logger"
 const dcp = "/lab/plugins/node_modules/@tarquinen/opencode-dcp"
 const require = createRequire(join(logger, "package.json"))
