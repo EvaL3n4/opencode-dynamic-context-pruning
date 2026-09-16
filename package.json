@@ -27,6 +27,7 @@
         "check:package": "npm run build && npm run verify:package",
         "prepublishOnly": "npm run check:package",
         "dev": "opencode plugin dev",
+        "sandbox": "node scripts/sandbox.mjs",
         "typecheck": "tsc --noEmit",
         "test": "node --import tsx --test tests/*.test.ts",
         "format": "prettier --write .",
