@@ -33,12 +33,13 @@ npm run build
 ```
 
 The install flag allows development against the different OpenTUI peer versions
-used by OpenCode V1 and V2.
+used by OpenCode V1 and V2. This also installs the bundled test logger's
+dependencies through the [tests/logger](tests/logger/) npm workspace.
 
 Run the checks relevant to your changes before submitting a pull request:
 
 ```sh
-npm test                  # Unit tests
+npm test                  # DCP and request-logger tests
 npm run typecheck         # TypeScript validation
 npm run check:package     # Build and validate the npm package
 npm run format:check      # Formatting
@@ -77,23 +78,16 @@ separate `tui.json` (panel):
 
 ## Manual Sandbox
 
-The sandbox requires Docker, Node/npm, a Codex login, and an
-`opencode-request-logger` checkout alongside DCP:
-
-```text
-parent/
-  opencode-dynamic-context-pruning/
-  opencode-request-logger/
-```
-
-From the DCP checkout:
+The sandbox requires Docker, Node/npm, and a ChatGPT login through `codex login`.
+The request logger is included in [tests/logger](tests/logger/); only the DCP
+checkout is needed. Complete [Development Setup](#development-setup), then run:
 
 ```sh
 npm run sandbox                 # OpenCode V2
 npm run sandbox -- --v1         # OpenCode V1
 ```
 
-Each launch rebuilds both plugins and prepares a clean Docker image. Run
+Each launch rebuilds DCP and the test logger and prepares a clean Docker image. Run
 `npm run sandbox -- --help` for available options and defaults. Authentication comes
 from `~/.codex/auth.json`, or `$CODEX_HOME/auth.json`; `DCP_CODEX_AUTH` overrides the
 file path. If the token expires, refresh your Codex login and relaunch.
@@ -130,7 +124,8 @@ dcp-sandbox
 
 ### Request Logs
 
-Each launch has `raw/` and `readable/` directories under its timestamped log folder.
+The logger is development-only tooling and is excluded from DCP's published npm
+package. Each launch has `raw/` and `readable/` directories under its timestamped log folder.
 The launcher manages the WebSocket relay and readable-log watcher. Requests appear
 as they are sent; assembled responses appear when they finish, while the session
 stays open. `--logs` only shows paths and capture counts.
@@ -155,13 +150,8 @@ The containerized lab exercises packed plugins on V1 and V2, including HTTP and
 WebSocket compression, commands, permissions, concurrent sessions, persistence,
 and native compaction. It uses a local mock provider without live credentials.
 
-With Docker and the sibling logger checkout available, install its dependencies:
-
-```sh
-npm --prefix ../opencode-request-logger ci --legacy-peer-deps
-```
-
-Build [tests/lab/Dockerfile](tests/lab/Dockerfile) using the image tag expected by
+After [Development Setup](#development-setup), build
+[tests/lab/Dockerfile](tests/lab/Dockerfile) using the image tag expected by
 [scripts/lab.mjs](scripts/lab.mjs), then run:
 
 ```sh
