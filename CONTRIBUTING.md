@@ -23,4 +23,168 @@ This arrangement ensures the project remains Open Source while providing a path 
 4.  Ensure all tests pass and the code is formatted.
 5.  Submit a Pull Request.
 
-We look forward to your contributions!
+## Development Setup
+
+Use Node.js and npm. From your checkout:
+
+```sh
+npm ci --legacy-peer-deps
+npm run build
+```
+
+The install flag allows development against the different OpenTUI peer versions
+used by OpenCode V1 and V2.
+
+Run the checks relevant to your changes before submitting a pull request:
+
+```sh
+npm test                  # Unit tests
+npm run typecheck         # TypeScript validation
+npm run check:package     # Build and validate the npm package
+npm run format:check      # Formatting
+```
+
+## Compatibility
+
+DCP provides server and terminal integrations for OpenCode V1 and V2, using shared
+package entrypoints and `dcp.jsonc` settings. Exercise both hosts when changing
+shared behavior.
+
+Use [package.json](package.json) for dependency requirements and
+[the lab Dockerfile](tests/lab/Dockerfile) for pinned integration-test versions.
+Host-specific behavior is implemented in [index.ts](index.ts),
+[tui.tsx](tui.tsx), and [lib/v2/](lib/v2/).
+
+## Local Installation
+
+After building, add this checkout's absolute path to your OpenCode configuration.
+
+For **V2**, use `opencode.json`:
+
+```jsonc
+{
+    "plugins": [{ "package": "/absolute/path/to/opencode-dynamic-context-pruning" }],
+    "permissions": [{ "action": "compress", "resource": "*", "effect": "allow" }],
+}
+```
+
+For **V1**, add the following to both `opencode.json` (server plugin) and the
+separate `tui.json` (panel):
+
+```jsonc
+{ "plugin": ["/absolute/path/to/opencode-dynamic-context-pruning"] }
+```
+
+## Manual Sandbox
+
+The sandbox requires Docker, Node/npm, a Codex login, and an
+`opencode-request-logger` checkout alongside DCP:
+
+```text
+parent/
+  opencode-dynamic-context-pruning/
+  opencode-request-logger/
+```
+
+From the DCP checkout:
+
+```sh
+npm run sandbox                 # OpenCode V2
+npm run sandbox -- --v1         # OpenCode V1
+```
+
+Each launch rebuilds both plugins and prepares a clean Docker image. Run
+`npm run sandbox -- --help` for available options and defaults. Authentication comes
+from `~/.codex/auth.json`, or `$CODEX_HOME/auth.json`; `DCP_CODEX_AUTH` overrides the
+file path. If the token expires, refresh your Codex login and relaunch.
+
+The sandbox has its own sessions, scratch workspace, and configuration under
+`~/.local/state/dcp-sandbox/`. V1 uses the `v1/` subdirectory, with a separate
+database. Your host project and normal OpenCode configuration are not mounted.
+Try `/dcp` for the panel or `/dcp-compress` for a compression pass.
+
+```sh
+npm run sandbox -- --fresh                 # New profile; keep old runs
+npm run sandbox -- --logs                  # Latest log paths and capture counts
+npm run sandbox -- --path                  # Current profile's host directory
+npm run sandbox -- -- --continue           # Resume a session
+npm run sandbox -- --update                # Remember the latest release
+npm run sandbox -- --opencode VERSION       # Pin a release to test
+npm run sandbox -- --transport http        # Select V2's transport
+npm run sandbox -- --model openai/MODEL     # Select a model available to your account
+```
+
+Replace `VERSION` and `MODEL` with the release and model you want to test.
+Add `--v1` to manage the V1 sandbox. Model, transport, and version choices persist;
+updates are explicit. `--fresh` selects a new profile for subsequent launches.
+You can edit `dcp.jsonc` and CLI preferences; `opencode.json` is launcher-managed.
+Set `DCP_SANDBOX_DIR` to choose another state directory.
+
+For a shortcut on Linux, run from the checkout:
+
+```sh
+mkdir -p ~/.local/bin
+ln -s "$PWD/scripts/sandbox.mjs" ~/.local/bin/dcp-sandbox
+dcp-sandbox
+```
+
+### Request Logs
+
+Each launch has `raw/` and `readable/` directories under its timestamped log folder.
+The launcher manages the WebSocket relay and readable-log watcher. Requests appear
+as they are sent; assembled responses appear when they finish, while the session
+stays open. `--logs` only shows paths and capture counts.
+
+Start at `readable/index.json`, then a session's numbered request folders:
+
+```text
+readable/<session>/0001_primary_websocket/
+  request.json       # Pretty-printed body actually sent
+  response.json      # Assistant content, parsed tool calls, token totals, errors
+  meta.json          # Timing, completion, transport, raw source, continuation ID
+```
+
+V2's full pre-transport snapshots are in each session's `context/` directory.
+WebSocket continuation requests remain deltas with `previous_response_id`.
+Partial and failed responses are marked in metadata. Full provider metadata,
+original HTTP bytes, and WebSocket frames remain available in `raw/`.
+
+## Integration Tests
+
+The containerized lab exercises packed plugins on V1 and V2, including HTTP and
+WebSocket compression, commands, permissions, concurrent sessions, persistence,
+and native compaction. It uses a local mock provider without live credentials.
+
+With Docker and the sibling logger checkout available, install its dependencies:
+
+```sh
+npm --prefix ../opencode-request-logger ci --legacy-peer-deps
+```
+
+Build [tests/lab/Dockerfile](tests/lab/Dockerfile) using the image tag expected by
+[scripts/lab.mjs](scripts/lab.mjs), then run:
+
+```sh
+node scripts/lab.mjs
+```
+
+The runner prints its output directory under `/tmp/opencode/dcp-lab/`. Set
+`DCP_LAB_DIR` to override it. Add `--built` to reuse an existing DCP build.
+For real-provider checks, `node scripts/lab.mjs --live` uses the current build and
+Codex authentication from `~/.codex/auth.json`.
+
+Inspect capture summaries without opening large transcripts:
+
+```sh
+node tests/lab/inspect.mjs <log-directory>
+```
+
+Terminal-panel checks require `uv` and reuse a completed lab run:
+
+```sh
+uv run --with pexpect --with pyte tests/lab/ui.py <lab-output-directory> v2
+uv run --with pexpect --with pyte tests/lab/ui.py <lab-output-directory> v1
+```
+
+These check the panel, Context, Stats, persisted manual-mode toggle, and closing
+the dialog. Terminal transcripts and screen snapshots are saved in the lab output.
