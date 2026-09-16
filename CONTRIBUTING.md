@@ -78,7 +78,7 @@ separate `tui.json` (panel):
 
 ## Manual Sandbox
 
-The sandbox requires Docker, Node/npm, and a ChatGPT login through `codex login`.
+The sandbox requires Docker, Node/npm, and saved OpenCode authentication.
 The request logger is included in [tests/logger](tests/logger/); only the DCP
 checkout is needed. Complete [Development Setup](#development-setup), then run:
 
@@ -88,9 +88,18 @@ npm run sandbox -- --v1         # OpenCode V1
 ```
 
 Each launch rebuilds DCP and the test logger and prepares a clean Docker image. Run
-`npm run sandbox -- --help` for available options and defaults. Authentication comes
-from `~/.codex/auth.json`, or `$CODEX_HOME/auth.json`; `DCP_CODEX_AUTH` overrides the
-file path. If the token expires, refresh your Codex login and relaunch.
+`npm run sandbox -- --help` for available options and defaults. Each launch copies
+all saved authentication from the matching host version: V1's `auth.json`, or V2's
+credential records and account selections. OpenCode handles provider authentication
+normally inside the container; copied credentials can be refreshed there without
+writing back to the host.
+
+V1's auth file is under `$XDG_DATA_HOME/opencode` (normally
+`~/.local/share/opencode`). V2's database is located with `opencode2 debug paths db`,
+or the standard data directory when that command is unavailable. Set `DCP_AUTH_PATH`
+to select a different V1 auth file or V2 database. Credentials embedded in host
+configuration or environment variables are not copied. Custom provider definitions
+can be added to `opencode.json` in the sandbox's scratch workspace.
 
 The sandbox has its own sessions, scratch workspace, and configuration under
 `~/.local/state/dcp-sandbox/`. V1 uses the `v1/` subdirectory, with a separate
@@ -105,10 +114,12 @@ npm run sandbox -- -- --continue           # Resume a session
 npm run sandbox -- --update                # Remember the latest release
 npm run sandbox -- --opencode VERSION       # Pin a release to test
 npm run sandbox -- --transport http        # Select V2's transport
-npm run sandbox -- --model openai/MODEL     # Select a model available to your account
+npm run sandbox -- --model PROVIDER/MODEL   # Select a model available to your account
 ```
 
-Replace `VERSION` and `MODEL` with the release and model you want to test.
+Replace `VERSION`, `PROVIDER`, and `MODEL` with the release and model you want to test.
+Without a saved model choice, OpenCode selects its default. A V2 transport override
+applies to the selected model.
 Add `--v1` to manage the V1 sandbox. Model, transport, and version choices persist;
 updates are explicit. `--fresh` selects a new profile for subsequent launches.
 You can edit `dcp.jsonc` and CLI preferences; `opencode.json` is launcher-managed.
@@ -146,9 +157,9 @@ original HTTP bytes, and WebSocket frames remain available in `raw/`.
 
 ## Integration Tests
 
-The containerized lab exercises packed plugins on V1 and V2, including HTTP and
-WebSocket compression, commands, permissions, concurrent sessions, persistence,
-and native compaction. It uses a local mock provider without live credentials.
+The containerized lab exercises packed plugins on V1 and V2, including saved-auth
+copying, HTTP and WebSocket compression, commands, permissions, concurrent sessions,
+persistence, and native compaction. It uses a local mock provider without live credentials.
 
 After [Development Setup](#development-setup), build
 [tests/lab/Dockerfile](tests/lab/Dockerfile) using the image tag expected by
@@ -161,7 +172,8 @@ node scripts/lab.mjs
 The runner prints its output directory under `/tmp/opencode/dcp-lab/`. Set
 `DCP_LAB_DIR` to override it. Add `--built` to reuse an existing DCP build.
 For real-provider checks, `node scripts/lab.mjs --live` uses the current build and
-Codex authentication from `~/.codex/auth.json`.
+saved V2 authentication. Its OpenAI Responses scenarios require access to the model
+configured in [tests/lab/live.mjs](tests/lab/live.mjs).
 
 Inspect capture summaries without opening large transcripts:
 
