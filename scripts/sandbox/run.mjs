@@ -2,10 +2,10 @@ import { execFileSync, spawn } from "node:child_process"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { restoreAuth } from "./auth.mjs"
 
 process.umask(0o077)
 const launch = JSON.parse(await readFile("/input/launch.json", "utf8"))
-const auth = JSON.parse(await readFile("/input/auth.json", "utf8"))
 try {
     execFileSync(
         "npm",
@@ -32,6 +32,18 @@ const { watch } = await import(pathToFileURL(join(logger, "readable.mjs")))
 const logs = join("/lab/logs", launch.stamp)
 const raw = join(logs, "raw")
 const config = process.env.OPENCODE_CONFIG_DIR
+const cli = `/opt/opencode/node_modules/.bin/${launch.major === 1 ? "opencode" : "opencode2"}`
+const separator = launch.model?.indexOf("/")
+const providers =
+    launch.model && launch.transport
+        ? {
+              [launch.model.slice(0, separator)]: {
+                  models: {
+                      [launch.model.slice(separator + 1)]: { transport: launch.transport },
+                  },
+              },
+          }
+        : undefined
 await Promise.all([raw, config, "/lab/project"].map((path) => mkdir(path, { recursive: true })))
 const readable = await watch(raw, join(logs, "readable"))
 const relay = createRelay({ directory: raw })
@@ -48,18 +60,6 @@ try {
                       small_model: launch.model,
                       plugin: [dcp, logger],
                       permission: { compress: "allow" },
-                      provider: {
-                          openai: {
-                              options: {
-                                  baseURL: "https://chatgpt.com/backend-api/codex",
-                                  apiKey: "{env:DCP_TOKEN}",
-                                  headers: {
-                                      "chatgpt-account-id": "{env:DCP_ACCOUNT}",
-                                      originator: "opencode",
-                                  },
-                              },
-                          },
-                      },
                   }
                 : {
                       $schema: "https://opencode.ai/config.json",
@@ -76,23 +76,7 @@ try {
                           },
                       ],
                       permissions: [{ action: "compress", resource: "*", effect: "allow" }],
-                      providers: {
-                          openai: {
-                              settings: {
-                                  baseURL: "https://chatgpt.com/backend-api/codex",
-                                  apiKey: "{env:DCP_TOKEN}",
-                              },
-                              headers: {
-                                  "chatgpt-account-id": "{env:DCP_ACCOUNT}",
-                                  originator: "opencode",
-                              },
-                              models: {
-                                  [launch.model.slice("openai/".length)]: {
-                                      transport: launch.transport,
-                                  },
-                              },
-                          },
-                      },
+                      providers,
                   },
             null,
             2,
@@ -129,22 +113,17 @@ try {
     } catch (error) {
         if (error.code !== "EEXIST") throw error
     }
-    const child = spawn(
-        `/opt/opencode/node_modules/.bin/${launch.major === 1 ? "opencode" : "opencode2"}`,
-        [...launch.args, ...(launch.major === 1 ? [] : ["--standalone"])],
-        {
-            cwd: "/lab/project",
-            stdio: "inherit",
-            env: {
-                ...process.env,
-                DCP_TOKEN: auth.access,
-                DCP_ACCOUNT: auth.account,
-                OPENCODE_LOG_LEVEL: "DEBUG",
-                ...(launch.major === 1 ? { OPENCODE_EXPERIMENTAL_WEBSOCKETS: "false" } : {}),
-                REQUEST_LOG_DIR: raw,
-            },
+    await restoreAuth(launch.major, "/input/auth.json", cli)
+    const child = spawn(cli, [...launch.args, ...(launch.major === 1 ? [] : ["--standalone"])], {
+        cwd: "/lab/project",
+        stdio: "inherit",
+        env: {
+            ...process.env,
+            OPENCODE_LOG_LEVEL: "DEBUG",
+            ...(launch.major === 1 ? { OPENCODE_EXPERIMENTAL_WEBSOCKETS: "false" } : {}),
+            REQUEST_LOG_DIR: raw,
         },
-    )
+    })
     const stop = () => child.kill("SIGTERM")
     process.on("SIGTERM", stop)
     process.on("SIGINT", stop)

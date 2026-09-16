@@ -5,6 +5,7 @@ import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { parseArgs } from "node:util"
+import { copyAuth } from "./sandbox/auth.mjs"
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const root = resolve(process.env.DCP_SANDBOX_DIR || join(homedir(), ".local/state/dcp-sandbox"))
@@ -39,7 +40,7 @@ Sessions and scratch files persist. Both plugins are rebuilt on every launch.
   --path              Print the current sandbox's host directory
   --update            Remember the latest release of the selected major version
   --opencode VERSION  Remember an exact version (V1 requires 1.18.29+)
-  --model MODEL       Remember an OpenAI model (default: openai/gpt-5.6-sol)
+  --model MODEL       Remember a provider/model (otherwise OpenCode selects one)
   --transport TYPE    V2: websocket or http; V1: http only
 
 Examples:
@@ -50,7 +51,7 @@ Examples:
   dcp-sandbox -- run --format json "Reply with OK."
 
 State: ${root}
-Auth: DCP_CODEX_AUTH, or $CODEX_HOME/auth.json, or ~/.codex/auth.json
+Auth: saved credentials from the selected OpenCode version; override with DCP_AUTH_PATH
 Override the state directory with DCP_SANDBOX_DIR.`)
     process.exit(0)
 }
@@ -93,26 +94,10 @@ async function main() {
     if (!interactive && cli.length === 0)
         throw new Error("An interactive terminal is required. For automation, use -- run <prompt>.")
 
-    const authPath =
-        process.env.DCP_CODEX_AUTH ||
-        join(process.env.CODEX_HOME || join(homedir(), ".codex"), "auth.json")
-    const auth = json(authPath, null)?.tokens
-    if (!auth?.access_token || !auth.account_id) {
-        throw new Error(
-            `ChatGPT authentication not found in ${authPath}. Sign in with codex login first.`,
-        )
-    }
-    const claims = JSON.parse(Buffer.from(auth.access_token.split(".")[1], "base64url").toString())
-    if (claims.exp * 1000 <= Date.now()) {
-        throw new Error(
-            "Codex access token has expired. Refresh your login in Codex, then launch again.",
-        )
-    }
     const settingsPath = join(state, "settings.json")
     const settings = json(settingsPath, {
         version: major === 1 ? "1.18.29" : "2.0.4",
-        model: "openai/gpt-5.6-sol",
-        transport: major === 1 ? "http" : "websocket",
+        transport: major === 1 ? "http" : undefined,
     })
     if (values.update && values.opencode)
         throw new Error("Choose --update or --opencode, not both.")
@@ -143,10 +128,12 @@ async function main() {
                 (Number(version[3]) < 29 || (Number(version[3]) === 29 && version[4]))))
     )
         throw new Error("DCP's shared entrypoint requires OpenCode 1.18.29 or newer.")
-    if (!settings.model.startsWith("openai/"))
-        throw new Error("This Codex sandbox requires an openai/ model.")
-    if (!["websocket", "http"].includes(settings.transport))
+    if (settings.model && !/^[^/]+\/.+$/.test(settings.model))
+        throw new Error("--model must use provider/model format.")
+    if (settings.transport && !["websocket", "http"].includes(settings.transport))
         throw new Error("--transport must be websocket or http.")
+    if (major === 2 && settings.transport && !settings.model)
+        throw new Error("Select --model provider/model when overriding its transport.")
     if (major === 1 && settings.transport !== "http")
         throw new Error(
             "The V1 sandbox uses HTTP so all requests can be logged. Use --transport http.",
@@ -197,18 +184,20 @@ async function main() {
         )
         packages.push(Object.values(packed)[0].filename)
     }
-    save(settingsPath, settings)
-    save(current, profile)
-    save(join(home, "latest.json"), stamp)
-    save(join(input, "launch.json"), { ...settings, major, packages, stamp, args: cli })
-    const token = join(input, "auth.json")
-    save(token, { access: auth.access_token, account: auth.account_id })
-    console.log(`OpenCode ${settings.version} · ${settings.model} · ${settings.transport}`)
-    console.log(`Workspace: ${join(home, "project")}`)
-    console.log(`DCP config: ${join(home, "home/config/opencode/dcp.jsonc")}`)
-    console.log(`Readable logs: ${join(home, "logs", stamp, "readable")}`)
-    console.log(`Raw logs: ${join(home, "logs", stamp, "raw")}`)
+    const auth = join(input, "auth.json")
     try {
+        copyAuth(major, auth, image)
+        save(settingsPath, settings)
+        save(current, profile)
+        save(join(home, "latest.json"), stamp)
+        save(join(input, "launch.json"), { ...settings, major, packages, stamp, args: cli })
+        console.log(
+            `OpenCode ${settings.version} · ${settings.model || "default model"} · ${settings.transport || "provider transport"}`,
+        )
+        console.log(`Workspace: ${join(home, "project")}`)
+        console.log(`DCP config: ${join(home, "home/config/opencode/dcp.jsonc")}`)
+        console.log(`Readable logs: ${join(home, "logs", stamp, "readable")}`)
+        console.log(`Raw logs: ${join(home, "logs", stamp, "raw")}`)
         const child = spawn(
             "docker",
             [
@@ -247,7 +236,7 @@ async function main() {
             process.off("SIGINT", stop)
         }
     } finally {
-        rmSync(token, { force: true })
+        rmSync(auth, { force: true })
     }
 }
 
