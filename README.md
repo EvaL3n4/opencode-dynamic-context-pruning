@@ -17,6 +17,110 @@ opencode plugin @tarquinen/opencode-dcp@latest --global
 
 This installs the package and adds it to your global OpenCode config.
 
+### OpenCode V2 migration
+
+This working tree targets **OpenCode 2.0.4** and retains **V1 1.18.29+** support
+through a shared package entrypoint. This initial migration has passed the
+documented integration checks; it has not been published as a new release.
+
+For a local V2 installation, build this checkout and add its directory to your
+V2 `opencode.json`:
+
+```jsonc
+{
+    "plugins": [{ "package": "/absolute/path/to/opencode-dynamic-context-pruning" }],
+    "permissions": [{ "action": "compress", "resource": "*", "effect": "allow" }],
+}
+```
+
+Existing `dcp.jsonc` settings still apply. The V2 adapter supports range/message
+compression and exposes the DCP panel through `/dcp`. V2 currently blocks
+`compress: ask` because the public plugin API has no permission-request method.
+Model-invisible chat reports are omitted; their reporting extension point remains
+available for a later implementation. DCP's self-updater remains V1-only.
+
+For a local V1 installation, register the directory in `opencode.json`'s `plugin`
+array. To load the panel, also register it in the separate `tui.json`:
+
+```jsonc
+{ "plugin": ["/absolute/path/to/opencode-dynamic-context-pruning"] }
+```
+
+See [the migration journal](docs/migration-v2.md) for architecture notes, test
+results, remaining gaps, and the isolated container test workflow.
+
+### Manual V1/V2 sandbox
+
+From this checkout, run:
+
+```sh
+npm run sandbox
+```
+
+This builds DCP and the sibling `opencode-request-logger` checkout, prepares a
+clean Docker image automatically, and opens OpenCode **2.0.4** with both plugins.
+It uses your current ChatGPT token from `~/.codex/auth.json` (or `CODEX_HOME` /
+`DCP_CODEX_AUTH`), the `openai/gpt-5.6-sol` model, and WebSockets. Docker and Node/npm
+are required. If the token expires, refresh your login in Codex and relaunch.
+
+Sessions, an empty-to-start scratch workspace, and editable `dcp.jsonc` persist
+under `~/.local/state/dcp-sandbox/`. Your host project, normal OpenCode config,
+agents, plugins, and service are not mounted or inherited. Each launch has its
+own raw and readable JSON logs; the launcher starts and stops the relay for you.
+Try `/dcp` for the panel or `/dcp-compress` to request compression manually.
+
+Use `dcp-sandbox --v1` (or `npm run sandbox -- --v1`) for OpenCode **1.18.29**
+over HTTP. V1 has its own sessions, workspace, and settings under the `v1/`
+subdirectory. Plain `dcp-sandbox` always selects V2. Each major retains its own
+profile database. Add `--v1` to management commands when working with V1.
+
+```sh
+npm run sandbox -- --fresh                 # New empty sandbox; keep old runs
+npm run sandbox -- --logs                  # Show log paths and capture counts
+npm run sandbox -- --v1 --logs             # Same for the V1 sandbox
+npm run sandbox -- --path                  # Current sandbox's host directory
+npm run sandbox -- -- --continue           # Resume a sandbox session
+npm run sandbox -- --update                # Remember the latest OpenCode 2.x
+npm run sandbox -- --v1 --update           # Remember the latest OpenCode 1.x
+npm run sandbox -- --opencode 2.0.4         # Pin a particular version again
+npm run sandbox -- --transport http        # Switch transport (remembered)
+```
+
+Every launch rebuilds both plugins, so relaunch after changing their code. Model,
+transport, and OpenCode-version selections are remembered; updates are explicit.
+`--fresh` switches subsequent launches to the new sandbox. DCP settings and CLI
+preferences are preserved; `opencode.json` is launcher-managed. Override the
+state location with `DCP_SANDBOX_DIR` and see `npm run sandbox -- --help` for more.
+
+Logs have `raw/` and `readable/` directories. Readable requests appear as they are
+sent, and assembled responses appear as soon as they finish. The watcher runs
+throughout the session, including while a WebSocket stays open for further requests.
+`--logs` shows the paths and capture counts without generating or rewriting files.
+Start at `readable/index.json`, then a session's numbered request folders:
+
+```text
+readable/<session>/0001_primary_websocket/
+  request.json       # Pretty-printed body actually sent
+  response.json      # Assistant content, parsed tool calls, token totals, errors
+  meta.json          # Timing, transport, completion, raw source, continuation ID
+```
+
+V2's full pre-transport snapshots are in each session's `context/` directory.
+Readable responses omit echoed prompts, tool definitions, encrypted reasoning,
+and detailed usage attribution; those remain available in the raw captures.
+WebSocket continuation requests remain deltas with `previous_response_id`; the
+formatter does not invent a full wire request. Partial/failed responses are marked
+in metadata, and original HTTP bytes/WS frames remain in `raw/`. No transcript
+Markdown is generated.
+
+To install an executable shortcut on Linux:
+
+```sh
+chmod +x scripts/sandbox.mjs
+ln -s "$PWD/scripts/sandbox.mjs" ~/.local/bin/dcp-sandbox
+dcp-sandbox
+```
+
 ## Project Status
 
 Development on DCP has slowed because most new context-management work has moved to [Sleev](https://sleev.ai) and the `sleev` CLI. Sleev is a local proxy for Claude Code, Codex, and OpenCode that builds on DCP's core ideas with newer context-management features and will work with any harness/client.
