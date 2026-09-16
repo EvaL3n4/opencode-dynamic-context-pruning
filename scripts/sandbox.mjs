@@ -29,7 +29,7 @@ const { values } = parseArgs({
 if (values.help) {
     console.log(`Usage: dcp-sandbox [options] [-- OpenCode arguments]
 
-Open isolated OpenCode with this checkout's DCP and sibling request logger.
+Open isolated OpenCode with this checkout's DCP and bundled test logger.
 Sessions and scratch files persist. Both plugins are rebuilt on every launch.
 
   --v1                Use V1 (default: 1.18.29, HTTP), with its own saved state
@@ -184,10 +184,9 @@ async function main() {
         join(repo, "scripts/sandbox"),
     ])
     console.log("Building DCP and request logger…")
+    if (!existsSync(join(repo, "node_modules"))) command("npm", ["ci", "--legacy-peer-deps"])
     const packages = []
-    for (const directory of [repo, resolve(repo, "../opencode-request-logger")]) {
-        if (!existsSync(join(directory, "node_modules")))
-            command("npm", ["ci", "--legacy-peer-deps"], directory)
+    for (const directory of [repo, join(repo, "tests/logger")]) {
         command("npm", ["run", "build"], directory)
         const packed = JSON.parse(
             command(

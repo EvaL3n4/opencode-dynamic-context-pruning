@@ -3,6 +3,9 @@
     "name": "@tarquinen/opencode-dcp",
     "version": "3.1.15",
     "type": "module",
+    "workspaces": [
+        "tests/logger"
+    ],
     "description": "OpenCode plugin that optimizes token usage by pruning obsolete tool outputs from conversation context",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -28,8 +31,8 @@
         "prepublishOnly": "npm run check:package",
         "dev": "opencode plugin dev",
         "sandbox": "node scripts/sandbox.mjs",
-        "typecheck": "tsc --noEmit",
-        "test": "node --import tsx --test tests/*.test.ts",
+        "typecheck": "tsc --noEmit && npm run typecheck --workspace=tests/logger",
+        "test": "node --import tsx --test tests/*.test.ts && npm test --workspace=tests/logger",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "dcp": "tsx scripts/print.ts"

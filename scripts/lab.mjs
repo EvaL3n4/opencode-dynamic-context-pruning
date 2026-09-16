@@ -26,7 +26,7 @@ if (live) {
     )
 }
 execFileSync("npm", ["pack", "--pack-destination", artifacts], {
-    cwd: resolve(repo, "../opencode-request-logger"),
+    cwd: join(repo, "tests/logger"),
     stdio: "pipe",
 })
 if (!live && !process.argv.includes("--built")) {
