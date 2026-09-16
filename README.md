@@ -46,9 +46,6 @@ array. To load the panel, also register it in the separate `tui.json`:
 { "plugin": ["/absolute/path/to/opencode-dynamic-context-pruning"] }
 ```
 
-See [the migration journal](docs/migration-v2.md) for architecture notes, test
-results, remaining gaps, and the isolated container test workflow.
-
 ### Manual V1/V2 sandbox
 
 From this checkout, run:

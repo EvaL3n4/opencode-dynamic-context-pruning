@@ -42,8 +42,7 @@ notes/
 test-update.ts
 
 # Documentation (local development only)
-docs/*
-!docs/migration-v2.md
+docs/
 SCHEMA_NOTES.md
 
 repomix-output.xml
