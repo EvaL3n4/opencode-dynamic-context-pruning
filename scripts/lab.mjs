@@ -27,7 +27,7 @@ execFileSync("npm", ["pack", "--ignore-scripts", "--pack-destination", artifacts
 console.log(`Lab output: ${root}`)
 const auth = join(artifacts, "auth.json")
 try {
-    if (live) copyAuth(2, auth, "dcp-lab:2.0.4")
+    if (live) copyAuth(2, auth, "dcp-lab:2.0.10")
     execFileSync(
         "docker",
         [
@@ -44,7 +44,7 @@ try {
             `type=bind,source=${join(repo, "tests/lab")},target=/test,readonly`,
             "--mount",
             `type=bind,source=${join(repo, "scripts/sandbox")},target=/sandbox,readonly`,
-            "dcp-lab:2.0.4",
+            "dcp-lab:2.0.10",
             "node",
             live ? "/test/live.mjs" : "/test/run.mjs",
         ],

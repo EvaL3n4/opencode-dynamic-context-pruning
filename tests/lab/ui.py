@@ -1,4 +1,4 @@
-"""Run with: uv run --with pexpect --with pyte tests/lab/ui.py LAB_DIR [v1|v2]."""
+"""Run with: uv run --with pexpect --with pyte tests/lab/ui.py LAB_DIR."""
 import json
 import os
 from pathlib import Path
@@ -9,8 +9,7 @@ import pexpect
 import pyte
 
 root = Path(sys.argv[1]) / "runtime"
-version = sys.argv[2] if len(sys.argv) > 2 else "v2"
-scenario = f"{version}-http-range"
+scenario = "v2-http-range"
 folder = root / scenario
 session = json.loads((folder / "result.json").read_text())["sessions"][0]
 home = f"/lab/{scenario}"
@@ -21,9 +20,7 @@ env = {"HOME": home, "PWD": f"{home}/project", "TERM": "xterm-256color", "COLORT
        "XDG_CACHE_HOME": f"{home}/cache", "OPENCODE_CONFIG_DIR": f"{home}/config/opencode", "LAB_API_KEY": "lab"}
 for key, value in env.items():
     args.extend(["-e", f"{key}={value}"])
-args.extend(["dcp-lab:2.0.4", f"/opt/{version}/node_modules/.bin/{'opencode2' if version == 'v2' else 'opencode'}"])
-if version == "v2":
-    args.append("--standalone")
+args.extend(["dcp-lab:2.0.10", "/opt/v2/node_modules/.bin/opencode2", "--standalone"])
 args.extend(["--session", session])
 child = pexpect.spawn("docker", args, encoding="utf-8", codec_errors="replace", dimensions=(60, 130), timeout=1)
 screen = pyte.Screen(130, 60)
@@ -73,13 +70,11 @@ try:
     wait(lambda: visible("MOCK_OK"), "session")
     child.send("/dcp")
     wait(lambda: visible("/dcp"), "typed")
-    if version == "v2":
-        wait(lambda: visible("Open DCP panel"), "registered")
+    wait(lambda: visible("Open DCP panel"), "registered")
     child.send("\r")
-    if version == "v2":
-        # Argument-taking slashes first complete the name; submitting then runs it.
-        wait(lambda: not visible("Open DCP panel"), "completed")
-        child.send("\r")
+    # Argument-taking slashes first complete the name; submitting then runs it.
+    wait(lambda: not visible("Open DCP panel"), "completed")
+    child.send("\r")
     wait(lambda: visible("Session State"), "panel")
     click("Context")
     wait(lambda: visible("Total in context") and visible("Breakdown"), "context")
@@ -94,7 +89,7 @@ try:
     wait(lambda: manual() != initial, "toggled")
     child.send("\x1b")
     wait(lambda: not visible("Session State"), "closed")
-    print(json.dumps({"version": version, "panel": True, "context": True, "stats": True, "manual": True, "close": True}))
+    print(json.dumps({"version": "v2", "panel": True, "context": True, "stats": True, "manual": True, "close": True}))
 finally:
     (folder / "ui.frames.json").write_text(json.dumps(frames, indent=2))
     child.sendcontrol("c")

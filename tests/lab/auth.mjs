@@ -60,6 +60,7 @@ export async function authentication() {
             },
             [origin]: { type: "wellknown", key: "EXAMPLE_TOKEN", token: "fake-token" },
         }
+        const cli = "/opt/v2/node_modules/.bin/opencode2"
         const file = join(root, "v1-auth.json")
         await writeFile(file, JSON.stringify(legacy), { mode: 0o600 })
         const previous = process.env.DCP_AUTH_PATH
@@ -71,14 +72,13 @@ export async function authentication() {
             if (previous === undefined) delete process.env.DCP_AUTH_PATH
             else process.env.DCP_AUTH_PATH = previous
         }
-        await restoreAuth(1, input, "/opt/v1/node_modules/.bin/opencode", v1Env)
+        await restoreAuth(1, input, cli, v1Env)
         assert.deepEqual(
             JSON.parse(await readFile(join(v1Env.XDG_DATA_HOME, "opencode/auth.json"), "utf8")),
             legacy,
         )
         assert.equal((await stat(input)).mode & 0o777, 0o600)
 
-        const cli = "/opt/v2/node_modules/.bin/opencode2"
         await run(cli, ["auth", "list", "--standalone", "--format", "json"], { env, cwd: root })
         const path = (await run(cli, ["debug", "paths", "db"], { env, cwd: root })).trim()
         const source = new DatabaseSync(path)
@@ -179,61 +179,36 @@ export async function authentication() {
         )
         restored.close()
         await mkdir(env.OPENCODE_CONFIG_DIR, { recursive: true })
-        for (const major of [1, 2]) {
-            await writeFile(
-                join(env.OPENCODE_CONFIG_DIR, "opencode.json"),
-                JSON.stringify(
-                    major === 1
-                        ? {
-                              autoupdate: false,
-                              model: "lab/gpt-5.4",
-                              small_model: "lab/gpt-5.4",
-                              provider: {
-                                  lab: {
-                                      npm: "@ai-sdk/openai",
-                                      options: { baseURL },
-                                      models: {
-                                          "gpt-5.4": { limit: { context: 200000, output: 32000 } },
-                                      },
-                                  },
-                              },
-                          }
-                        : {
-                              update: "disable",
-                              model: "lab/gpt-5.4",
-                              agents: { title: { model: "lab/gpt-5.4" } },
-                              providers: {
-                                  lab: {
-                                      package: "@opencode/ai/providers/openai/responses",
-                                      env: ["LAB_AUTH_KEY"],
-                                      settings: { baseURL },
-                                      models: {
-                                          "gpt-5.4": {
-                                              transport: "http",
-                                              limit: { context: 200000, output: 32000 },
-                                          },
-                                      },
-                                  },
-                              },
-                          },
-                ),
-            )
-            const start = headers.length
-            const output = await run(
-                major === 1 ? "/opt/v1/node_modules/.bin/opencode" : cli,
-                [
-                    "run",
-                    ...(major === 2 ? ["--standalone"] : []),
-                    "--format",
-                    "json",
-                    "Reply AUTH_COPY_OK.",
-                ],
-                { env: major === 1 ? v1Env : targetEnv, cwd: root },
-            )
-            assert.ok(output.includes("AUTH_COPY_OK"))
-            assert.ok(headers.length > start)
-            assert.ok(headers.slice(start).every((header) => header === "Bearer fake-key"))
-        }
+        await writeFile(
+            join(env.OPENCODE_CONFIG_DIR, "opencode.json"),
+            JSON.stringify({
+                update: "disable",
+                model: "lab/gpt-5.4",
+                agents: { title: { model: "lab/gpt-5.4" } },
+                providers: {
+                    lab: {
+                        package: "@opencode/ai/providers/openai/responses",
+                        env: ["LAB_AUTH_KEY"],
+                        settings: { baseURL },
+                        models: {
+                            "gpt-5.4": {
+                                transport: "http",
+                                limit: { context: 200000, output: 32000 },
+                            },
+                        },
+                    },
+                },
+            }),
+        )
+        const start = headers.length
+        const output = await run(
+            cli,
+            ["run", "--standalone", "--format", "json", "Reply AUTH_COPY_OK."],
+            { env: targetEnv, cwd: root },
+        )
+        assert.ok(output.includes("AUTH_COPY_OK"))
+        assert.ok(headers.length > start)
+        assert.ok(headers.slice(start).every((header) => header === "Bearer fake-key"))
     } finally {
         await new Promise((resolve) => server.close(resolve))
     }

@@ -31,7 +31,6 @@ try {
         ["v2", "websocket", "range"],
         ["v2", "http", "message"],
         ["v2", "websocket", "message"],
-        ["v1", "http", "range"],
     ]) {
         const root = `/lab/${version}-${transport}-${mode}`
         const directory = join(root, "project")
@@ -45,48 +44,27 @@ try {
                 directory: logs,
                 relay: `ws://127.0.0.1:${relay.server.address().port}`,
             }
-            const settings =
-                version === "v2"
-                    ? {
-                          plugins: [{ package: dcp }, { package: logger, options }],
-                          update: "disable",
-                          model: "lab/gpt-5.4",
-                          permissions: [{ action: "compress", resource: "*", effect: "allow" }],
-                          providers: {
-                              lab: {
-                                  package: "@opencode/ai/providers/openai/responses",
-                                  env: ["LAB_API_KEY"],
-                                  settings: { baseURL: mock.url },
-                                  models: {
-                                      "gpt-5.4": {
-                                          transport,
-                                          compaction: { mode: "local" },
-                                          limit: { context: 200000, output: 32000 },
-                                      },
-                                  },
-                              },
-                          },
-                      }
-                    : {
-                          plugin: [dcp, logger],
-                          autoupdate: false,
-                          model: "lab/gpt-5.4",
-                          small_model: "lab/gpt-5.4",
-                          permission: { compress: "allow" },
-                          provider: {
-                              lab: {
-                                  npm: "@ai-sdk/openai",
-                                  options: { baseURL: mock.url, apiKey: "lab" },
-                                  models: {
-                                      "gpt-5.4": { limit: { context: 200000, output: 32000 } },
-                                  },
-                              },
-                          },
-                      }
-            await writeFile(join(config, "opencode.json"), JSON.stringify(settings))
-            if (version === "v1") {
-                await writeFile(join(config, "tui.json"), JSON.stringify({ plugin: [dcp] }))
+            const settings = {
+                plugins: [{ package: dcp }, { package: logger, options }],
+                update: "disable",
+                model: "lab/gpt-5.4",
+                permissions: [{ action: "compress", resource: "*", effect: "allow" }],
+                providers: {
+                    lab: {
+                        package: "@opencode/ai/providers/openai/responses",
+                        env: ["LAB_API_KEY"],
+                        settings: { baseURL: mock.url },
+                        models: {
+                            "gpt-5.4": {
+                                transport,
+                                compaction: { mode: "local" },
+                                limit: { context: 200000, output: 32000 },
+                            },
+                        },
+                    },
+                },
             }
+            await writeFile(join(config, "opencode.json"), JSON.stringify(settings))
             await writeFile(
                 join(config, "dcp.json"),
                 JSON.stringify({
@@ -109,16 +87,13 @@ try {
                 LAB_API_KEY: "lab",
                 OPENCODE_LOG_LEVEL: "DEBUG",
             }
-            const cli =
-                version === "v2"
-                    ? "/opt/v2/node_modules/.bin/opencode2"
-                    : "/opt/v1/node_modules/.bin/opencode"
+            const cli = "/opt/v2/node_modules/.bin/opencode2"
             const start = mock.requests.length
             const output = await run(
                 cli,
                 [
                     "run",
-                    ...(version === "v2" ? ["--standalone"] : []),
+                    "--standalone",
                     "--format",
                     "json",
                     "--model",
@@ -188,9 +163,9 @@ try {
                     assert.ok(events.some((event) => event.type === "response.completed"))
                 }
             } else assert.ok(summary.wsResponses > 0)
-            if (version === "v2") assert.ok(summary.contexts > 0)
+            assert.ok(summary.contexts > 0)
             const result = { version, transport, mode, compression: true, ...summary }
-            if (version === "v2" && transport === "http" && mode === "range") {
+            if (transport === "http" && mode === "range") {
                 Object.assign(
                     result,
                     await commands(

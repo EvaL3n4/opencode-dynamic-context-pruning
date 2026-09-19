@@ -42,7 +42,8 @@ notes/
 test-update.ts
 
 # Documentation (local development only)
-docs/
+docs/**
+!docs/opencode-v2-plugin-api.md
 SCHEMA_NOTES.md
 
 repomix-output.xml
