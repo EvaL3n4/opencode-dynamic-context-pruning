@@ -56,7 +56,7 @@ try {
                         settings: { baseURL: mock.url, transport },
                         models: {
                             "gpt-5.4": {
-                                compaction: { mode: "local" },
+                                compaction: { type: "summary" },
                                 limit: { context: 200000, output: 32000 },
                             },
                         },

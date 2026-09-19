@@ -375,13 +375,13 @@ the `tests/lab` container matrix against `@opencode/cli@2.0.10`.
    (`agent.<name>.request.settings.transport`). Symptom in the lab: `assert.ok(sent.length > 0)`
    failed with "v2 did not use websocket". Fix: move it to `providers.x.settings`.
 2. **Model `compaction` changed shape.** 2.0.10 model settings use
-   `compaction: { type: "summary" | "native" }`, not 2.0.4's `{ mode: "local" }`. Being a declared
-   key, a `mode` value does not decode — _unverified_ whether it errors or degrades to absent;
-   the lab passed either way, so treat the current `{ mode: "local" }` in `tests/lab/run.mjs` as
-   stale and confirm what compaction mode it actually exercises before relying on it. Note the
-   **top-level** config `compaction` (`ConfigCompaction.Info`) is a different shape entirely —
-   `{ auto?, keep?: { tokens? }, buffer? }` — and also has no `mode` field, so `{ mode: "local" }`
-   matches no compaction schema in 2.0.10.
+   `compaction: { type: "summary" | "native" }`, not 2.0.4's `{ mode: "local" }`. **Resolved
+   empirically**: `tests/lab/run.mjs` now sets `{ type: "summary" }`, and all four matrix legs
+   produce results identical to the old `{ mode: "local" }` run (`compression: true`,
+   `contexts: 3`, `compaction: true`, same assertions passing), proving the `mode` value was
+   inert dead config that 2.0.10 silently dropped. Note the **top-level** config `compaction`
+   (`ConfigCompaction.Info`) is a different shape entirely — `{ auto?, keep?: { tokens? },
+   buffer? }` — and also has no `mode` field.
 3. **The `system` shape** — see §3.3 correction above.
 4. **Tool `input` accepts a plain JSON Schema** per the published 2.0.10 types
    (`ValueSchema = Schema.Codec | StandardSchemaV1 | JsonSchema`), which is how `lib/v2` keeps
