@@ -126,12 +126,19 @@ This replaces `experimental.chat.system.transform` **and** the tool-filter use c
 
 ```ts
 event: {
-  system: string[],      // push/append to inject into the system prompt
+  system: SystemPart[],   // { type: "text", text, cache?, metadata? }[] — push/append to inject into the system prompt
   tools: Record<string, ToolDef>,  // live map; delete/rename/rewrite entries
   model: { id, ... },
   ...                    // agent/session info
 }
 ```
+
+> **Verified against `@opencode/plugin@2.0.10` types** (not inferred from the binary):
+> `SessionContext extends SessionRequest` and `SessionRequest.system` is
+> `Array<SystemPart>` where `SystemPart = { type: "text", text: string, cache?, metadata? }`
+> (`@opencode/plugin/dist/promise/session.d.ts`, `@opencode/ai/dist/schema/messages.d.ts`).
+> The `string[]` annotation above was wrong — but note the built-in examples in §3.3 that
+> call `Kl.make("...")` are consistent with parts, since `Kl.make` builds a text part.
 
 Verified usage patterns from built-ins:
 
@@ -275,7 +282,32 @@ Read output line format (verified from string table + tool description):
    are published.
 9. `diff`/`web-tree-sitter` runtime deps remain usable from `~/.config/opencode/package.json`.
 
-## 9. Verification commands
+## 9. 2.0.4 → 2.0.10 drift found in practice
+
+Verified by retargeting `origin/v2` (pinned to `@opencode/plugin@2.0.4`) to 2.0.10 and running
+the `tests/lab` container matrix against `@opencode/cli@2.0.10`.
+
+1. **`transport` moved off the model.** In 2.0.10, `Model.Settings` declares **only `compaction`**
+   (as a `StructWithRest`, so extra keys are silently swallowed). Setting
+   `providers.x.models.y.transport = "websocket"` is dropped and requests **fall back to HTTP
+   with no error**. The schema's own doc string: *"websocket" on a route without a WebSocket
+   channel warns and falls back to HTTP.* `transport` now lives on **route-level
+   `Provider.Settings`** (`providers.x.settings.transport`) and on agent route overlays
+   (`agent.<name>.request.settings.transport`). Symptom in the lab: `assert.ok(sent.length > 0)`
+   failed with "v2 did not use websocket". Fix: move it to `providers.x.settings`.
+2. **Model `compaction` changed shape.** 2.0.10 model settings use
+   `compaction: { type: "summary" | "native" }`, not 2.0.4's `{ mode: "local" }`. Being a declared
+   key, a `mode` value does not decode — *unverified* whether it errors or degrades to absent;
+   the lab passed either way, so treat the current `{ mode: "local" }` in `tests/lab/run.mjs` as
+   stale and confirm what compaction mode it actually exercises before relying on it.
+3. **The `system` shape** — see §3.3 correction above.
+4. **Tool `input` accepts a plain JSON Schema** per the published 2.0.10 types
+   (`ValueSchema = Schema.Codec | StandardSchemaV1 | JsonSchema`), which is how `lib/v2` keeps
+   using `@opencode-ai/plugin`'s `tool.schema.object` bridge. §4.1's "must be Zod" claim is about
+   the *binary's* runtime conversion, which the npm types cannot confirm — the lab is the
+   authority here, and the `compress` tool round-trips fine through 2.0.10 in all four legs.
+
+## 10. Verification commands
 
 ```bash
 # Confirm the binary has no v1 hooks
