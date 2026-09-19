@@ -381,7 +381,7 @@ the `tests/lab` container matrix against `@opencode/cli@2.0.10`.
    `contexts: 3`, `compaction: true`, same assertions passing), proving the `mode` value was
    inert dead config that 2.0.10 silently dropped. Note the **top-level** config `compaction`
    (`ConfigCompaction.Info`) is a different shape entirely — `{ auto?, keep?: { tokens? },
-   buffer? }` — and also has no `mode` field.
+buffer? }` — and also has no `mode` field.
 3. **The `system` shape** — see §3.3 correction above.
 4. **Tool `input` accepts a plain JSON Schema** per the published 2.0.10 types
    (`ValueSchema = Schema.Codec | StandardSchemaV1 | JsonSchema`), which is how `lib/v2` keeps
