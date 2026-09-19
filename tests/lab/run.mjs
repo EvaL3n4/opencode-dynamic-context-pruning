@@ -53,10 +53,9 @@ try {
                     lab: {
                         package: "@opencode/ai/providers/openai/responses",
                         env: ["LAB_API_KEY"],
-                        settings: { baseURL: mock.url },
+                        settings: { baseURL: mock.url, transport },
                         models: {
                             "gpt-5.4": {
-                                transport,
                                 compaction: { mode: "local" },
                                 limit: { context: 200000, output: 32000 },
                             },
