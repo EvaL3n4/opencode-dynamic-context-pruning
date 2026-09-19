@@ -2,7 +2,7 @@
 
 Reverse-engineered from the running binary at `/home/opus/.opencode/bin/opencode`
 (`opencode v2.0.10`, Bun-compiled). All facts below were extracted from the binary's
-embedded source unless marked *unverified*.
+embedded source unless marked _unverified_.
 
 > **⚠️ Do not trust the reference repo or the installed npm package for this.**
 > `/home/opus/.local/share/opencode/repos/github.com/anomalyco/opencode` (branch `dev`,
@@ -16,8 +16,10 @@ embedded source unless marked *unverified*.
 
 ```ts
 export default {
-  id: "opencode-hashline",
-  async setup(ctx) { /* register hooks/tools */ },
+    id: "opencode-hashline",
+    async setup(ctx) {
+        /* register hooks/tools */
+    },
 }
 ```
 
@@ -75,27 +77,27 @@ and compaction all moved to `session.hook`.
 
 Hook names observed in use inside the binary:
 
-| Domain | Hook name | Purpose |
-|---|---|---|
-| `tool` | `execute.before` | mutate tool input before a tool runs |
-| `tool` | `execute.after` | observe/rewrite tool results |
-| `session` | `context` | per-request LLM context: **system prompt + tool list** |
-| `session` | `compaction` | compaction prompt context |
-| `session` | `generate` | generation-time context (same payload shape as `context`) |
-| `session` | `title` | title-generation context; set `result` to skip the model request |
-| `session` | `prompt` | user prompt before dispatch |
-| `session` | `retry` | decide whether to retry a failed request (`attempt`, `decision`) |
-| `session` | `model.request` / `http.request` / `http.response` | request plumbing |
-| `session` | `experimental.ws.handshake` / `ws.send` / `ws.receive` | WebSocket channel plumbing |
-| `aisdk` | `model.request`, `http.request`, `http.response`, `retry`, `sdk`, `language` | AI SDK layer |
-| `permission` | `evaluate` | permission decisions (`PermissionEvaluation`) |
-| `shell` | (hook registered via `shell.hook`) | shell plumbing |
+| Domain       | Hook name                                                                    | Purpose                                                          |
+| ------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `tool`       | `execute.before`                                                             | mutate tool input before a tool runs                             |
+| `tool`       | `execute.after`                                                              | observe/rewrite tool results                                     |
+| `session`    | `context`                                                                    | per-request LLM context: **system prompt + tool list**           |
+| `session`    | `compaction`                                                                 | compaction prompt context                                        |
+| `session`    | `generate`                                                                   | generation-time context (same payload shape as `context`)        |
+| `session`    | `title`                                                                      | title-generation context; set `result` to skip the model request |
+| `session`    | `prompt`                                                                     | user prompt before dispatch                                      |
+| `session`    | `retry`                                                                      | decide whether to retry a failed request (`attempt`, `decision`) |
+| `session`    | `model.request` / `http.request` / `http.response`                           | request plumbing                                                 |
+| `session`    | `experimental.ws.handshake` / `ws.send` / `ws.receive`                       | WebSocket channel plumbing                                       |
+| `aisdk`      | `model.request`, `http.request`, `http.response`, `retry`, `sdk`, `language` | AI SDK layer                                                     |
+| `permission` | `evaluate`                                                                   | permission decisions (`PermissionEvaluation`)                    |
+| `shell`      | (hook registered via `shell.hook`)                                           | shell plumbing                                                   |
 
 > **Verified from source** (`packages/plugin/src/promise/session.ts`, tag `v2.0.10`): the full
 > `SessionHooks` map is `prompt, context, compaction, generate, title, model.request,
-> http.request, http.response, experimental.ws.handshake, experimental.ws.send,
-> experimental.ws.receive, retry`. The `experimental.ws.*` hooks above are therefore confirmed
-> (previously marked *unverified*), and `title` / `prompt` / `retry` were missing from the
+http.request, http.response, experimental.ws.handshake, experimental.ws.send,
+experimental.ws.receive, retry`. The `experimental.ws.*` hooks above are therefore confirmed
+> (previously marked _unverified_), and `title` / `prompt` / `retry` were missing from the
 > binary-grep list. The `aisdk` `language` hook is confirmed by the plugin README's example
 > (`event.model`, `event.sdk`, `event.language`).
 
@@ -104,7 +106,9 @@ Hook names observed in use inside the binary:
 Event shape (from the `Tool.execute` implementation):
 
 ```ts
-{ tool, sessionID, agent, messageID, id, input }
+{
+    ;(tool, sessionID, agent, messageID, id, input)
+}
 ```
 
 - `input` **is the live args object** — mutating its properties in place changes what the
@@ -154,24 +158,28 @@ event: {
 > call `Kl.make("...")` are consistent with parts, since `Kl.make` builds a text part.
 
 > **Source-verified** (`packages/plugin/src/promise/session.ts`, tag `v2.0.10`):
+>
 > ```ts
 > interface SessionRequest {
->   readonly sessionID: Session.ID
->   readonly model: Model.Ref
->   system: Array<SystemPart>
->   messages: Array<Message>
->   options: SessionRequestOptions
+>     readonly sessionID: Session.ID
+>     readonly model: Model.Ref
+>     system: Array<SystemPart>
+>     messages: Array<Message>
+>     options: SessionRequestOptions
 > }
 > interface SessionContext extends SessionRequest {
->   readonly agent: Agent.ID
->   tools: Record<string, { description: string; input: JsonSchema.JsonSchema }>
+>     readonly agent: Agent.ID
+>     tools: Record<string, { description: string; input: JsonSchema.JsonSchema }>
 > }
 > interface SessionCompaction extends SessionContext {
->   /** Set to use this compaction and skip the model request. */
->   result?: SessionCompactionResult   // { summary, providerState?, metadata?, tokens? }
+>     /** Set to use this compaction and skip the model request. */
+>     result?: SessionCompactionResult // { summary, providerState?, metadata?, tokens? }
 > }
-> interface SessionTitle extends SessionRequest { result?: string }  // same skip behavior
+> interface SessionTitle extends SessionRequest {
+>     result?: string
+> } // same skip behavior
 > ```
+>
 > The `tools` map value is **not** a full `ToolDef` — only `{ description, input }`. Note the
 > compaction/title `result` fields: a hook can supply the summary/title itself and **skip the
 > model request entirely**, which the binary grep could not reveal.
@@ -220,9 +228,13 @@ ctx.tool.transform((editor) => {
 ```
 
 The editor object given to your callback:
+
 ```js
-{ list, get, namespace, add, update, remove }
+{
+    ;(list, get, namespace, add, update, remove)
+}
 ```
+
 and `add` wraps your execute: `add: (Te) => ye.add({...Te, execute: (Pe, Le) => lv(Te, Pe, Le)})`.
 
 Verified built-in registrations (Edit, Glob, Grep, Write, Question, apply_patch) all use
@@ -235,9 +247,9 @@ this shape with `name` (not `id`), a schema `input` (see §4.1), and `options`.
 
 ```ts
 export type ValueSchema<A = unknown> =
-  | Schema.Codec<A, any>        // Effect Schema (the canonical form in docs/examples)
-  | StandardSchemaV1<any, A>    // any standard-schema consumer (Zod v4 implements this)
-  | JsonSchema.JsonSchema       // a plain JSON Schema object
+    | Schema.Codec<A, any> // Effect Schema (the canonical form in docs/examples)
+    | StandardSchemaV1<any, A> // any standard-schema consumer (Zod v4 implements this)
+    | JsonSchema.JsonSchema // a plain JSON Schema object
 ```
 
 The official plugin README registers tools with Effect's `Schema.Struct`:
@@ -246,24 +258,24 @@ The official plugin README registers tools with Effect's `Schema.Struct`:
 import { Schema } from "effect"
 
 tools.add({
-  name: "echo",
-  options: { codemode: false },
-  description: "Echo text",
-  input: Schema.Struct({ text: Schema.String }),
-  output: Schema.Struct({ text: Schema.String }),
-  execute: async ({ text }) => ({ output: { text }, content: text }),
+    name: "echo",
+    options: { codemode: false },
+    description: "Echo text",
+    input: Schema.Struct({ text: Schema.String }),
+    output: Schema.Struct({ text: Schema.String }),
+    execute: async ({ text }) => ({ output: { text }, content: text }),
 })
 ```
 
 The original binary-grep reasoning below is retained as a caution, but its conclusion does not hold:
 the binary does embed Zod v4 and does convert `input` to a JSON Schema for the LLM
 (`DD = (e) => ({ type: "tool", name: Wr(e), description: e.description, inputSchema: sd(e.input), ... })`),
-but `sd` accepts any of the three `ValueSchema` members — embedding Zod does not mean *plugins*
+but `sd` accepts any of the three `ValueSchema` members — embedding Zod does not mean _plugins_
 must supply Zod. DCP's bridge (`tool.schema.object(definition.args)` from `@opencode-ai/plugin`,
 which yields a plain JSON Schema object) typechecks and round-trips through 2.0.10 in the lab
 harness across all four matrix legs, which settles it empirically as well.
 
-> Caution: the tool editor's *context-side* map (§3.3 `event.tools`) types `input` as
+> Caution: the tool editor's _context-side_ map (§3.3 `event.tools`) types `input` as
 > `JsonSchema.JsonSchema` only — the narrower shape there is real, and reflects what is actually
 > sent on the wire.
 
@@ -277,27 +289,30 @@ same filter).
 ## 5. Tool execute context
 
 `execute(args, ctx)` receives a context with at least:
+
 ```ts
 { sessionID, messageID, agent, id, directory, worktree, ... }
 ```
+
 Verified field accesses in built-in executes: `i.sessionID`, `i.agent`, `i.messageID`,
 `i.id`, and `f.directory` (from `s.resolve(...)` / worktree context).
 
 ## 6. Built-in tool names & arg shapes (from string table)
 
-| Tool | Args |
-|---|---|
-| `read` | `path` ("File or directory to read"), `offset` ("The line or directory entry to start reading from (1-based)"), `limit` ("The maximum number of lines or directory entries to read (defaults to 2000)") |
-| `write` | `filePath` ("Path to the file to write to"), `content` ("Content to write to the file") |
-| `edit` | *see binary* — str_replace-style |
-| `grep` | `pattern`, `path`, `include`, ... |
-| `glob` | `path`, `pattern` |
-| `shell` | `command`, `cwd`, `timeout`, `background` |
+| Tool    | Args                                                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `read`  | `path` ("File or directory to read"), `offset` ("The line or directory entry to start reading from (1-based)"), `limit` ("The maximum number of lines or directory entries to read (defaults to 2000)") |
+| `write` | `filePath` ("Path to the file to write to"), `content` ("Content to write to the file")                                                                                                                 |
+| `edit`  | _see binary_ — str_replace-style                                                                                                                                                                        |
+| `grep`  | `pattern`, `path`, `include`, ...                                                                                                                                                                       |
+| `glob`  | `path`, `pattern`                                                                                                                                                                                       |
+| `shell` | `command`, `cwd`, `timeout`, `background`                                                                                                                                                               |
 
 > **Note:** `read` takes **`path`**, not `filePath`. The WIP migration's
 > `event.input?.filePath` on read is wrong; it should be `event.input?.path`.
 
 Read output line format (verified from string table + tool description):
+
 - Each text line is prefixed with its 1-based line number as `<line>: <content>`.
 - Directory entries are returned one per line.
 - Long lines are truncated with the marker `... (line truncated to N chars)`.
@@ -311,20 +326,20 @@ Read output line format (verified from string table + tool description):
 
 `src/index.ts` (uncommitted working tree):
 
-| Guess | Verdict |
-|---|---|
-| `export default { id, async setup(ctx) }` | ✅ **Correct** module shape |
-| `ctx.tool.hook("execute.before", cb)` | ✅ Correct |
-| `ctx.tool.hook("execute.after", cb)` | ✅ Correct |
-| `ctx.tool.transform((editor) => editor.add({...}))` | ✅ Correct |
-| `ctx.session.hook("context", cb)` | ✅ Correct |
-| `ctx.session.hook("compaction", cb)` | ✅ Correct |
-| `event.input?.filePath` (read) | ❌ Read uses `input.path` |
-| `event.output` in `execute.after` | ❌ Output is at `event.result.output` (success) / `event.error` (failure); mutate in place |
-| `event.system.push(...)` on compaction | ✅ **Verified** — context/compaction/generate share `SessionContext`, and `system` is `SystemPart[]`; push `{ type: "text", text }`, not a bare string (v1 pushed strings) |
-| `input: { type: "object", properties: {...} }` | ✅ **Actually fine** — §4.1 was wrong; plain JSON Schema is a valid `ValueSchema` |
-| `editor.add({ name, description, input, execute })` | ✅ Correct |
-| Keying pending calls by `sessionID` instead of `callID` | ⚠️ Events carry `id` (callID) and `sessionID`; the v1 callID-stash workaround is unnecessary — `execute.after` receives `input` directly |
+| Guess                                                   | Verdict                                                                                                                                                                    |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `export default { id, async setup(ctx) }`               | ✅ **Correct** module shape                                                                                                                                                |
+| `ctx.tool.hook("execute.before", cb)`                   | ✅ Correct                                                                                                                                                                 |
+| `ctx.tool.hook("execute.after", cb)`                    | ✅ Correct                                                                                                                                                                 |
+| `ctx.tool.transform((editor) => editor.add({...}))`     | ✅ Correct                                                                                                                                                                 |
+| `ctx.session.hook("context", cb)`                       | ✅ Correct                                                                                                                                                                 |
+| `ctx.session.hook("compaction", cb)`                    | ✅ Correct                                                                                                                                                                 |
+| `event.input?.filePath` (read)                          | ❌ Read uses `input.path`                                                                                                                                                  |
+| `event.output` in `execute.after`                       | ❌ Output is at `event.result.output` (success) / `event.error` (failure); mutate in place                                                                                 |
+| `event.system.push(...)` on compaction                  | ✅ **Verified** — context/compaction/generate share `SessionContext`, and `system` is `SystemPart[]`; push `{ type: "text", text }`, not a bare string (v1 pushed strings) |
+| `input: { type: "object", properties: {...} }`          | ✅ **Actually fine** — §4.1 was wrong; plain JSON Schema is a valid `ValueSchema`                                                                                          |
+| `editor.add({ name, description, input, execute })`     | ✅ Correct                                                                                                                                                                 |
+| Keying pending calls by `sessionID` instead of `callID` | ⚠️ Events carry `id` (callID) and `sessionID`; the v1 callID-stash workaround is unnecessary — `execute.after` receives `input` directly                                   |
 
 ## 8. Migration checklist
 
@@ -354,14 +369,14 @@ the `tests/lab` container matrix against `@opencode/cli@2.0.10`.
 1. **`transport` moved off the model.** In 2.0.10, `Model.Settings` declares **only `compaction`**
    (as a `StructWithRest`, so extra keys are silently swallowed). Setting
    `providers.x.models.y.transport = "websocket"` is dropped and requests **fall back to HTTP
-   with no error**. The schema's own doc string: *"websocket" on a route without a WebSocket
-   channel warns and falls back to HTTP.* `transport` now lives on **route-level
+   with no error**. The schema's own doc string: _"websocket" on a route without a WebSocket
+   channel warns and falls back to HTTP._ `transport` now lives on **route-level
    `Provider.Settings`** (`providers.x.settings.transport`) and on agent route overlays
    (`agent.<name>.request.settings.transport`). Symptom in the lab: `assert.ok(sent.length > 0)`
    failed with "v2 did not use websocket". Fix: move it to `providers.x.settings`.
 2. **Model `compaction` changed shape.** 2.0.10 model settings use
    `compaction: { type: "summary" | "native" }`, not 2.0.4's `{ mode: "local" }`. Being a declared
-   key, a `mode` value does not decode — *unverified* whether it errors or degrades to absent;
+   key, a `mode` value does not decode — _unverified_ whether it errors or degrades to absent;
    the lab passed either way, so treat the current `{ mode: "local" }` in `tests/lab/run.mjs` as
    stale and confirm what compaction mode it actually exercises before relying on it. Note the
    **top-level** config `compaction` (`ConfigCompaction.Info`) is a different shape entirely —
@@ -371,7 +386,7 @@ the `tests/lab` container matrix against `@opencode/cli@2.0.10`.
 4. **Tool `input` accepts a plain JSON Schema** per the published 2.0.10 types
    (`ValueSchema = Schema.Codec | StandardSchemaV1 | JsonSchema`), which is how `lib/v2` keeps
    using `@opencode-ai/plugin`'s `tool.schema.object` bridge. §4.1's "must be Zod" claim is about
-   the *binary's* runtime conversion, which the npm types cannot confirm — the lab is the
+   the _binary's_ runtime conversion, which the npm types cannot confirm — the lab is the
    authority here, and the `compress` tool round-trips fine through 2.0.10 in all four legs.
 
 ## 10. Hook semantics (source-verified)
@@ -404,26 +419,26 @@ at tag `v2.0.10`:
 Verbatim table from `services/www/src/docs/content/build/plugins/migrate-v1.mdx` (tag `v2.0.10`) —
 the authoritative destination for each v1 hook DCP uses:
 
-| V1 extension point | V2 API |
-| --- | --- |
-| `event` | `ctx.event.subscribe()` |
-| `dispose` | cleanup function returned by `setup` |
-| `config` | transforms on the affected domains |
-| `tool` map | `ctx.tool.transform(...)` |
-| `auth` | `ctx.integration.transform(...)` and integration APIs |
-| `provider` | `ctx.provider.transform(...)` and `ctx.model.transform(...)` |
-| `chat.message` | `ctx.session.hook("prompt", ...)` |
-| `chat.params` | `ctx.session.hook("context", ...)` |
-| `chat.headers` | `ctx.session.hook("model.request", ...)` or `"http.request"` |
-| `permission.ask` | `ctx.permission.hook("evaluate", ...)` |
-| `command.execute.before` | command transforms or the prompt hook, depending on intent |
-| `tool.execute.before` | `ctx.tool.hook("execute.before", ...)` |
-| `tool.execute.after` | `ctx.tool.hook("execute.after", ...)` |
-| `shell.env` | `ctx.shell.hook("create.before", ...)` |
-| `tool.definition` | `ctx.tool.transform(...)` |
-| `experimental.chat.system.transform` | `ctx.session.hook("context", ...)` and edit `event.system` |
+| V1 extension point                     | V2 API                                                       |
+| -------------------------------------- | ------------------------------------------------------------ |
+| `event`                                | `ctx.event.subscribe()`                                      |
+| `dispose`                              | cleanup function returned by `setup`                         |
+| `config`                               | transforms on the affected domains                           |
+| `tool` map                             | `ctx.tool.transform(...)`                                    |
+| `auth`                                 | `ctx.integration.transform(...)` and integration APIs        |
+| `provider`                             | `ctx.provider.transform(...)` and `ctx.model.transform(...)` |
+| `chat.message`                         | `ctx.session.hook("prompt", ...)`                            |
+| `chat.params`                          | `ctx.session.hook("context", ...)`                           |
+| `chat.headers`                         | `ctx.session.hook("model.request", ...)` or `"http.request"` |
+| `permission.ask`                       | `ctx.permission.hook("evaluate", ...)`                       |
+| `command.execute.before`               | command transforms or the prompt hook, depending on intent   |
+| `tool.execute.before`                  | `ctx.tool.hook("execute.before", ...)`                       |
+| `tool.execute.after`                   | `ctx.tool.hook("execute.after", ...)`                        |
+| `shell.env`                            | `ctx.shell.hook("create.before", ...)`                       |
+| `tool.definition`                      | `ctx.tool.transform(...)`                                    |
+| `experimental.chat.system.transform`   | `ctx.session.hook("context", ...)` and edit `event.system`   |
 | `experimental.chat.messages.transform` | `ctx.session.hook("context", ...)` and edit `event.messages` |
-| `experimental.session.compacting` | `ctx.session.hook("compaction", ...)` |
+| `experimental.session.compacting`      | `ctx.session.hook("compaction", ...)`                        |
 
 > "These are migration destinations, not always exact renames." — `prompt` runs before durable
 > prompt admission; `context` runs immediately before an agent model request.
