@@ -388,6 +388,18 @@ buffer? }` — and also has no `mode` field.
    using `@opencode-ai/plugin`'s `tool.schema.object` bridge. §4.1's "must be Zod" claim is about
    the _binary's_ runtime conversion, which the npm types cannot confirm — the lab is the
    authority here, and the `compress` tool round-trips fine through 2.0.10 in all four legs.
+5. **The pinned `@opencode/theme` devDep can lie about the TUI theme API.**
+   `@opencode/plugin@2.0.10` declares **no** `@opencode/theme` dependency, so the version that
+   ends up in `node_modules` types `ctx.theme` — and a stale pin silently typechecks a shape the
+   binary does not implement. DCP pinned `^2.0.4`, whose `ResolvedTheme` has
+   `contextual: Record<"elevated" | "overlay", ResolvedThemeTokens>` with tokens like
+   `text.default`/`text.subdued`/`background.surface.offset` and `StatefulColor.default`. The
+   2.0.10 binary instead resolves `ResolvedThemeTokens & { surface: (name: "dialog") =>
+ResolvedTheme }` with renamed tokens (`text.base`, `text.muted`, `background.raised.base`,
+   `text.feedback.*.base`, `StatefulColor.base`). This typechecked and then crashed at runtime
+   with `undefined is not an object (evaluating 'ctx.theme.contextual.overlay')`. **Pin
+   `@opencode/theme` to the exact OpenCode version you target** (the fix lives in commit
+   `1bf708c`), and treat any `ctx.theme` access as runtime-suspect until the pin matches.
 
 ## 10. Hook semantics (source-verified)
 
