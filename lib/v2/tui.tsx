@@ -11,19 +11,23 @@ export async function setup(ctx: Plugin.Context) {
     const api: ViewApi = {
         theme: {
             get current() {
-                const theme = ctx.theme.contextual.overlay
+                // 2.0.10 token names. The installed @opencode/theme is 2.0.4 (whose types
+                // declare a `contextual` map), but the binary implements `surface(name)` with
+                // SurfaceName = "dialog"; the installed types typecheck a shape the runtime
+                // does not have, so this is deliberately written against the runtime.
+                const theme = ctx.theme.surface("dialog")
                 return {
-                    primary: theme.text.action.primary.default,
-                    accent: theme.text.action.secondary.default,
-                    text: theme.text.default,
-                    textMuted: theme.text.subdued,
-                    background: theme.background.default,
-                    backgroundElement: theme.background.surface.offset,
-                    borderSubtle: theme.border.default,
-                    selectedListItemText: theme.background.default,
-                    success: theme.text.feedback.success.default,
-                    warning: theme.text.feedback.warning.default,
-                    error: theme.text.feedback.error.default,
+                    primary: theme.text.action.primary.base,
+                    accent: theme.text.action.secondary.base,
+                    text: theme.text.base,
+                    textMuted: theme.text.muted,
+                    background: theme.background.base,
+                    backgroundElement: theme.background.raised.base,
+                    borderSubtle: theme.border.base,
+                    selectedListItemText: theme.background.base,
+                    success: theme.text.feedback.success.base,
+                    warning: theme.text.feedback.warning.base,
+                    error: theme.text.feedback.error.base,
                 }
             },
         },
